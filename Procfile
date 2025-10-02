@@ -1,1 +1,1 @@
-web: python api/recipe-query.py
+web: python simple_api.py
