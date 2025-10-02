@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { OpenAI } from 'openai';
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+import { spawn } from 'child_process';
+import path from 'path';
 
 export async function POST(request: NextRequest): Promise<Response> {
   try {
@@ -16,14 +13,55 @@ export async function POST(request: NextRequest): Promise<Response> {
       );
     }
 
-    // For now, generate a simple article without the Python script
-    // This is a temporary solution until we can properly deploy the Python system
-    const articleContent = await generateSimpleArticle(query);
+    // Path to the simple recipe query script
+    const recipeQueryPath = path.join(process.cwd(), 'recipe writing/recipe-writer/query');
+    
+    return new Promise<Response>((resolve) => {
+      const child = spawn('python3', [recipeQueryPath, query], {
+        cwd: path.join(process.cwd(), 'recipe writing/recipe-writer'),
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
 
-    return NextResponse.json({
-      success: true,
-      html: articleContent,
-      summary: 'Professional article generated'
+      let stdout = '';
+      let stderr = '';
+
+      child.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      child.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      child.on('close', (code) => {
+        if (code !== 0) {
+          console.error('Recipe query failed:', stderr);
+          resolve(NextResponse.json(
+            { error: 'Failed to generate recipe content', details: stderr },
+            { status: 500 }
+          ));
+          return;
+        }
+
+        // Parse the output to extract article content
+        const articleMatch = stdout.match(/=== Professional Article ===\n([\s\S]*?)$/);
+        
+        const articleContent = articleMatch ? articleMatch[1].trim() : '';
+
+        resolve(NextResponse.json({
+          success: true,
+          html: articleContent,
+          summary: 'Professional article generated'
+        }));
+      });
+
+      child.on('error', (error) => {
+        console.error('Failed to start recipe query process:', error);
+        resolve(NextResponse.json(
+          { error: 'Failed to start recipe query process', details: error.message },
+          { status: 500 }
+        ));
+      });
     });
 
   } catch (error) {
@@ -32,31 +70,5 @@ export async function POST(request: NextRequest): Promise<Response> {
       { error: 'Internal server error' },
       { status: 500 }
     );
-  }
-}
-
-async function generateSimpleArticle(query: string): Promise<string> {
-  try {
-    const prompt = `Write a professional article about "${query}". 
-
-Create a compelling article with:
-- An engaging introduction
-- 3-5 recipe sections with descriptions
-- Cooking tips
-- A conclusion
-
-Format the response as HTML with proper headings and paragraphs.`;
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [{ role: 'user', 'content': prompt }],
-      temperature: 0.7,
-      max_tokens: 2000
-    });
-
-    return response.choices[0].message.content || '';
-  } catch (error) {
-    console.error('OpenAI API error:', error);
-    return `<h1>${query}</h1><p>Article generation temporarily unavailable. Please try again later.</p>`;
   }
 }
