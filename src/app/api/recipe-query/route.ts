@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'child_process';
 import path from 'path';
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<Response> {
   try {
     const { query } = await request.json();
 
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     // Path to the simple recipe query script
     const recipeQueryPath = path.join(process.cwd(), 'recipe writing/recipe-writer/query');
     
-    return new Promise((resolve) => {
+    return new Promise<Response>((resolve) => {
       const child = spawn('python3', [recipeQueryPath, query], {
         cwd: path.join(process.cwd(), 'recipe writing/recipe-writer'),
         stdio: ['pipe', 'pipe', 'pipe']
