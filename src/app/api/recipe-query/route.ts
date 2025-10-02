@@ -12,7 +12,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
 
     // Call the Render Python API server
-    const pythonApiUrl = process.env.PYTHON_API_URL || 'https://recipe-api-5k5t.onrender.com';
+    const pythonApiUrl = 'https://recipe-api-5k5t.onrender.com';
     
     const response = await fetch(`${pythonApiUrl}/recipe-query`, {
       method: 'POST',
