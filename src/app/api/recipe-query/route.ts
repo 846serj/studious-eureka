@@ -44,7 +44,7 @@ export async function POST(request: NextRequest): Promise<Response> {
         }
 
         // Parse the output to extract article content
-        const articleMatch = stdout.match(/=== Professional Article ===\n(.*?)$/s);
+        const articleMatch = stdout.match(/=== Professional Article ===\n([\s\S]*?)$/);
         
         const articleContent = articleMatch ? articleMatch[1].trim() : '';
 
